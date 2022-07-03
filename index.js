@@ -2,23 +2,32 @@
 
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
-const schemas = require("./Schema");
-const cors = require('cors');
+const fs = require("fs");
+const decode = require("node-base64-image").decode;
+const Schemas = require("./Schema.js");
+require('dotenv').config();
+const cors = require("cors");
+var bodyParser = require('body-parser');
+const jwtKey = process.env.SASTA_JWT;
+
 
 // Declaring Constants
 
-const DB = "mongodb://localhost:27017/schoolProject";
-const jwtKey = "yesecretha";
-const AUTHTOKEN = "ultraprotoken";
+const DB = "mongodb+srv://snips:snips@cluster0.hscsw.mongodb.net/myFirstDatabase?retryWrites=true&w=majority";
+// const DB = 'mongodb://localhost:27017/schoolProject';
 app = express();
 const port = process.env.PORT || 8080;
-app.use(express.json());
-app.use(express.urlencoded({extended:true}));
 app.use(cors());
-app.use(express.static("public"));
+app.use(bodyParser.urlencoded({
+    limit: '10mb',
+    parameterLimit: 100000,
+    extended: false 
+}));
 
+app.use(bodyParser.json({
+    limit: '10mb'
+}));
 // Connecting to Database
 
 mongoose.connect(DB).then(() => {
@@ -27,439 +36,500 @@ mongoose.connect(DB).then(() => {
 
 mongoose.connection.on("error", err => console.log("Runtime Connection Error - "+err));
 
-// Creating Models
+// const TimeTable = new mongoose.model("TimeTable", schemas.timeTableSchema);
+// const Syllabus = new mongoose.model("Syllabus", schemas.syllabusSchema);
+const Students = new mongoose.model("student", Schemas.studentSchema);
+const Teacher = new mongoose.model("teachers", Schemas.teacherSchema);
+const Notice = new mongoose.model("notices", Schemas.noticeSchema);
+const HW = new mongoose.model("assignments", Schemas.assignSchema);
+const Chat = new mongoose.model("chattings", Schemas.chatSchema);
+const TeacherChat = new mongoose.model("adminchat", Schemas.teacherIssueSchema);
+const notification = new mongoose.model("notification", Schemas.notifSchema);
 
-const Admin = new mongoose.model("Admin", schemas.adminSchema);
-const Message = new mongoose.model("Message", schemas.messageSchema);
-const Notice = new mongoose.model("Notice", schemas.noticeSchema);
-const Student = new mongoose.model("Student", schemas.studentSchema);
+// Verify Session Endpoint - New One this one will be used for both student and admin.
+// We can check the account type via role in the token, three roles 1-student,2-teacher,3-admin
 
+// Student Login Endpoint
 
-// Parameters validation function
-
-function validateParams(a){
-	var valid = true;
-	a.forEach(function(item){
-		if(item==""||item==null){
-			valid = false;
-		}
-	});
-	return valid;
-}
-
-
-
-// Endpoints
-
-
-// 0 - Normal Endpoint
-app.get("/", (req,res) => {
-	res.sendFile(__dirname+"/public/index.html");
-});
-
-// 1 - Admin Creation Endpoint
-
-app.get("/api/createAdsfsfgsgmin", async(req,res) => {
-	var name = req.query.name;
-	var password = req.query.password;
-	if(req.query.token!=AUTHTOKEN){
+app.get("/api/loginStudent", async(req,res) => {
+	var admNo = req.query.admNo;
+	var phone = req.query.phone;
+	var token = req.query.token;
+	var p = [admNo,phone];
+	// Token Validation Here
+	var Student = await Students.find({admNo : admNo, fNum : phone});
+	var teach = await Teacher.find({adhar : admNo, phone : phone});
+	if(Student.length>0) {
+		var data = {
+			admNo,
+			phone,
+			role:"student",
+			expiry : new Date().getTime() + 432000000
+		};
+		var token = jwt.sign(data, jwtKey);
 		res.json({
-			message:"Invalid Authtoken"
+			message:"Login Successful",
+			Student,
+			token,
+			role: "student",
+			expiry : new Date().getTime() + 432000000
 		});
-	}else{
-		var hashedPassword = bcrypt.hashSync(password, 10);
-		const newAdmin = new Admin({
-			name,
-			password:hashedPassword,
-			createdOn : `${new Date().getDate()}/${new Date().getMonth()}/${new Date().getFullYear()}`
+	}
+	else if(teach.length > 0) {
+		var data = {
+			admNo,
+			phone,
+			role:"teacher",
+			expiry : new Date().getTime() + 432000000
+		};
+		var token = jwt.sign(data, jwtKey);
+		res.json({
+			message:"Login Successful",
+			teach,
+			role: "teacher",
+			token,
+			expiry : new Date().getTime() + 432000000
 		});
-		try{
-			var result = await newAdmin.save();
-			console.log("Admin Creation - "+result);
-			res.json({
-				message:"Admin Created",
-				data:result
-			});
-		}catch(err){
-			console.log("Admin Creation Error - "+err);
-			res.json({
-				messgae:"Admin Not Created",
-				error:err
-			});
-		}
+	}
+	else{
+		res.json({
+			message:"Student not found"
+		});
 	}
 });
 
-// 2 - Admin Login Endpoint
+app.get("/api/verifySession", async(req,res) => {
+	var token = req.query.token;
 
-app.get("/api/loginAdmin", async(req,res) => {
-	var name = req.query.name;
-	var password = req.query.password;
-	var p = [name,password];
-	if(req.query.token!=AUTHTOKEN){
+
+	try{
+		var data = jwt.verify(token, jwtKey);
 		res.json({
-			message:"Invalid Authtoken"
+			message:"Token Valid",
+			data
 		});
-	}else{
-		var Admins = await Admin.find({name});
-		if(!Admins.length>0){
-			res.json({
-				message:"Account not found"
-			});
-		}else if(!bcrypt.compareSync(password, Admins[0].password)){
-			res.json({
-				message:"Wrong Password"
-			});
-		}else{
-			var data = {
-				name,
-				role:"admin"
-			};
-			var token = jwt.sign(data, jwtKey);
-			res.json({
-				message:"Login Successful",
-				token
-			});
-		}
+	}catch(err){
+		console.log(err)
+		res.json({
+			message:"Token Invalid"
+		});
 	}
 });
-
-// 3 - Verify Session Endpoint
-
-app.post("/api/verifySession", async(req,res) => {
-	var email = req.body.email;
-	var token = req.body.token;
-	var p = [email,token];
-	if(req.query.token!=AUTHTOKEN){
-		res.json({
-			message:"Invalid Authtoken"
-		});
-	}else if(!validateParams(p)){
-		res.json({
-			message:"Invalid Parameters"
-		});
-	}else{
+	
+app.get("/api/verifyRole", async(req, res) => {
+	var token = req.query.token;
+	var role = req.query.role;
+	
+	
 		try{
-			var td = jwt.verify(token, jwtKey);
-			if(td.email==email){
-				res.json({
-					message:"Token Valid"
-				});
-			}else{
-				res.json({
-					message:"Token Invalid"
-				});
-			}
-		}catch(err){
+			var data = jwt.verify(token, jwtKey);
+			// console.log(role)
+			if(data.role == role) {
+			res.json({
+				message:"Token Valid",
+				data
+			});
+		} else {
 			res.json({
 				message:"Token Invalid"
 			});
 		}
-	}
-});
-
-// 4 - Contact Message Endpoint
-
-app.get("/api/addMessage", async(req,res) => {
-	var name = req.query.name;
-	var email = req.query.email;
-	var phone = req.query.phone;
-	var msg = req.query.msg;
-	var p = [name,email,phone, msg];
-	console.log(p)
-	if(req.query.token!=AUTHTOKEN){
-		res.json({
-			message:"Invalid Authtoken"
-		});
-	}else if(!validateParams(p)){
-		res.json({
-			message:"Invalid Parameters"
-		});
-	}else{
-		var newMsg = new Message({
-			name : name,
-			email : email,
-			phone : phone,
-			msg : msg,
-			date : (new Date().getDate())+"/"+(new Date().getMonth())+"/"+(new Date().getFullYear()),
-			time : (new Date().getHours())+":"+(new Date().getMinutes()),
-		});
-		try{
-			await newMsg.save();
-			res.json({
-				message:"Message Added"
-			});
 		}catch(err){
+			console.log(err)
 			res.json({
-				message:"Error Occured",
-				error:err
+				message:"Token Invalid"
 			});
 		}
-	}
-});
-
-// 5 - Get Messages Endpoint
-
-app.get("/api/getMessage", async(req,res) => {
-	var date = req.query.date;
-	if(req.query.token!=AUTHTOKEN){
-		res.json({
-			message:"Invalid Authtoken"
-		});
-	}else if(date!=null){
-		try{
-			var data = await Message.find({addedOn:date});
-			res.json({
-				message:"Success",
-				total:data.length,
-				data
-			});
-		}catch(err){
-			res.json({
-				message:"Error Occured",
-				error:err
-			});
-		}
-	}else{
-		try{
-			var data = await Message.find();
-			res.json({
-				message:"Success",
-				total:data.length,
-				data
-			});
-		}catch(err){
-			res.json({
-				message:"Error Occured",
-				error:err
-			});
-		}
-	}
-});
-
-// 6 - Add Notice Endpoint
-
-app.get("/api/addNotice", async(req,res) => {
-	var notice = req.query.notice;
-	var p = [notice];
-	if(req.query.token!=AUTHTOKEN){
-		res.json({
-			message:"Invalid Authtoken"
-		});
-	}else if(!validateParams(p)){
-		res.json({
-			message:"Invalid Parameters"
-		});
-	}else{
-		var newNotice = new Notice({
-			date : (new Date().getDate())+"/"+(new Date().getMonth())+"/"+(new Date().getFullYear()),
-			time : (new Date().getHours())+":"+(new Date().getMinutes()),
-			notice : notice
-		});
-		try{
-			await newNotice.save();
-			res.json({
-				message:"Notice Added"
-			});
-		}catch(err){
-			res.json({
-				message:"Error Occured",
-				error:err
-			});
-		}
-	}
-});
-
-// 7 - Get Notice Endpoint
-
-app.get("/api/getNotice", async(req,res) => {
-	if(req.query.token!=AUTHTOKEN){
-		res.json({
-			message:"Invalid Authtoken"
-		});
-	}else{
-		try{
-			var data = await Notice.find();
-			res.json(
-				data
-			);
-		}catch(err){
-			res.json({
-				message:"Error Occured",
-				error:err
-			});
-		}
-	}
-});
-
-// 8 - Delete Notice Endpoint
-
-app.get("/api/deleteNotice", async(req,res) => {
-	var id = req.query.id;
-	var p = [id];
-	if(req.query.token!=AUTHTOKEN){
-		res.json({
-			message:"Invalid Authtoken"
-		});
-	}else if(!validateParams(p)){
-		res.json({
-			message:"Invalid Parameters"
-		});
-	}else{
-		try{
-			var result = await Notice.deleteOne({_id:id});
-			res.json({
-				result
-			});
-		}catch(err){
-			res.json({
-				message:"Error Occured",
-				error:err
-			});
-		}
-	}
-});
-
-// 9 - Edit Notice Endpoint
-
-app.get("/api/editNotice", async(req,res) => {
-	var notice = req.query.notice;
-	var id = req.query.id;
-	var p = [notice,id];
-	if(req.query.token!=AUTHTOKEN){
-		res.json({
-			message:"Invalid Authtoken"
-		});
-	}else if(!validateParams(p)){
-		res.json({
-			message:"Invalid Parameters"
-		});
-	}else{
-		try{
-			var result = await Notice.updateOne({_id:id}, {
-				$set:{
-					notice : notice
-				}
-			});
-			res.json({
-				result
-			});
-		}catch(err){
-			res.json({
-				message:"Error Occured",
-				error:err
-			});
-		}
-	}
-});
-
-// 10 - Get Students Data
-
-app.get("/api/getStudent", async(req,res) => {
-	var admNo = req.query.admNo;
-	// var admNo = "";
-	var cls = req.query.cls;
-	cls = cls==""?cls="X":cls;
-	var section = req.query.sec;
-	var house = req.query.house;
-	var egl = req.query.egl;
-	var halfPer = req.query.halfPercentage;
-	var annualfPer = req.query.annualPercentage;
-	var halfAtt = req.query.halfAtt;
-	var annualAtt = req.query.annualAtt;
-	var dob = req.query.dob;
-	var doa = req.query.doa;
-	var feee = req.query.fee;
-	var newArr = new Array();
-	Student.find({admNo:{$regex : admNo}, sec:{$regex : section},egl: {$regex:egl}, cls : cls, halfpercentage: {$gte: halfPer}, house:{$regex : house}, annualpercentage: {$gte : annualfPer}
-		, halfattendence: {$gte: halfAtt}, annualattendence: {$gte: annualAtt}, dob : {$regex : dob}, doa : {$regex : doa}
-	}, (err, data) => {
-		if(data.length>=200) {
-			data = data.slice(0, 200);
-			res.send(data);
-		}
-		else {
-			res.send(data);
-		}
-	})
-});
-// 11 - Add Student Endpoint
-
-app.post("/api/addStudent", async(req,res) => {
-	var name = req.query.name;
-	var admNo = req.query.admNo;
-	var cls = req.query.cls;
-	var section = req.query.section;
-	var dob = req.query.dob;
-	var doa = req.query.doa;
-	var house = req.query.house;
-	var address = req.query.address;
-	var phoneOne = req.query.phoneOne;
-	var phoneTwo = req.query.phoneTwo;
-	var fatherName = req.query.fName;
-	var motherName = req.query.mName;
-
-	if(req.query.token!=AUTHTOKEN){
-		res.json({
-			message:"Invalid Authtoken"
-		});
-	}else if(!validateParams(p)){
-		res.json({
-			message:"Invalid Parameters"
-		});
-	}else{
-		var newStudent = new Student({
-			admNo,cls,section,details:{
-				name,fatherName,motherName,dob,doa,house,address,phoneOne,phoneTwo
-			}
-		});
-		try{
-			await newStudent.save();
-			res.json({
-				message:"Student Added"
-			});
-		}catch(err){
-			res.json({
-				message:"Error Occured",
-				error:err
-			});
-		}
-	}
-});
-
-// 12 - Edit Student Data
-
-
-// 13 - Delete Student
-
-app.get("/api/deleteStudent", async(req,res) => {
-	var admNo = req.query.admNo;
-	var p = [admNo];
-	if(req.query.token!=AUTHTOKEN){
-		res.json({
-			message:"Invalid Authtoken"
-		});
-	}else if(!validateParams(p)){
-		res.json({
-			message:"Invalid Parameters"
-		});
-	}else{
-		try{
-			var result = await Student.deleteOne({admNo});
-			res.json({
-				result
-			});
-		}catch(err){
-			res.json({
-				message:"Error Occured",
-				error:err
-			});
-		}
-	}
-});
-
+})
 // Starting the server
 
+app.get("/api/getTimeTable", async(req, res) => {
+	var token = req.query.token;
+	var calass = req.query.class;
+	var tokenValid = true;
+	
+		try{
+			var data = jwt.verify(token, jwtKey);
+			res.json({
+				link: 'https://studentbackendpelese.herokuapp.com/Time-Table/'+calass+".jpg",
+				message: 'success'
+			})
+		}catch(err){
+			console.log(err)
+			res.json({
+				message:"Token Invalid"
+			});
+		}
+});
+
+app.get("/Time-Table/:id", async(req, res) => {
+	var id = req.path;
+	id = id.replace("/Time-Table/:");
+	console.log(id)
+	res.sendFile(__dirname+"/"+id);
+});
+
+app.get("/api/getNotice", async(req, res) => {
+	var token = req.query.token;
+	
+	
+		try{
+			var data = jwt.verify(token, jwtKey);
+			var notice = await Notice.find({});
+			notice = notice.length>40?notice.split(0, 40):notice;
+			res.json({
+				message: 'yes',
+				data : notice
+			})
+		}catch(err){
+			console.log(err)
+			res.json({
+				message: 'no'
+			});
+		}
+});
+
+app.get("/api/getSyllabus", async(req, res) => {
+	var token = req.query.token;
+	var cls = req.query.cls;
+	
+	
+		try{
+			var data = jwt.verify(token, jwtKey);
+			console.log("Done")
+			res.download(__dirname+'/Syllabus/'+cls+'.jpg');
+		}catch(err){
+			res.json({
+				message: 'no'
+			});
+		}
+});
+
+app.get("/api/getClassStudents", async(req, res) => {
+	var token = req.query.token;
+	var cls = req.query.cls;
+	var sec = req.query.sec;
+	
+
+	try{
+		var data = jwt.verify(token, jwtKey);
+		if(cls!=""&&sec!="") {
+			var st = await Students.find({cls : cls, sec : sec});
+			res.json({
+				message : 'yes',
+				data : st
+			});
+		}
+		else {
+			res.json({
+				message : 'ncls'
+			})
+		}
+	}catch(err){
+		res.json({
+			message: 'no'
+		});
+	}
+});
+
+
+app.get("/api/getPrev", async(req, res) => {
+	var token = req.query.token;
+	var cls = req.query.cls;
+	var sub = req.query.sub;
+	
+	
+	try{
+		sub = sub.split("-");
+		cls = cls.split("-");
+		var data = jwt.verify(token, jwtKey);
+		if(cls!=""&&sub!="") {
+			var ab = await HW.find({});
+			var h = await ab.filter((e) => {
+				var aa = e['subject'];
+				var bb = e['cls'];
+				if(cls.includes(bb)&&sub.includes(aa)) {
+					return e;
+				}
+			});
+
+			h = h.reverse();
+			res.json({
+				message : 'yes',
+				data : h
+			});
+		}
+		else {
+			res.json({
+				message : 'ncls'
+			})
+		}
+	}catch(err){
+		console.log(err)
+		res.json({
+			message: 'no'
+		});
+	}
+});
+
+app.get("/api/deleteAssign", async(req, res) => {
+	var token = req.query.token;
+	var id = req.query.id;
+	console.log(id);
+	
+
+	try{
+		var data = jwt.verify(token, jwtKey);
+		var d = await HW.deleteOne({_id : id});
+		console.log(d);
+		res.json({
+			message:"yes",
+			data
+		});
+	}catch(err){
+		console.log(err)
+		res.json({
+			message:"er"
+		});
+	}
+});
+
+app.get("/api/getPrevSt", async(req, res) => {
+	var token = req.query.token;
+	var cls = req.query.cls;
+	console.log(cls);
+	
+
+	try{
+		var data = jwt.verify(token, jwtKey);
+		var d = await HW.find({cls : cls});
+		res.json({
+			message:"yes",
+			data : d.reverse()
+		});
+	}catch(err){
+		console.log(err)
+		res.json({
+			message:"er"
+		});
+	}
+});
+
+app.get("/api/verifySt", async(req, res) => {
+	var token = req.query.token;
+	var cls = req.query.cls;
+	var admNo = req.query.admNo;
+	var sec = req.query.sec;
+	var id = req.query.id;
+	var fNum = req.query.fNum;
+	var fee = req.query.fee;
+	var mName = req.query.mName;
+	var tokenValid = true;
+	try{
+		var data = jwt.verify(token, jwtKey);
+		var d = await Students.find({_id : id,admNo : admNo, cls : cls, sec : sec, fNum : fNum, mName : mName, fee : fee});
+		if(d.length == 1) {
+			res.json({
+				message:"verified",
+			});
+		}
+		else {
+			res.json({
+				message: "invalid",
+			});
+		}
+	}catch(err){
+		console.log(err)
+		res.json({
+			message:"er"
+		});
+	}
+});
+
+app.get("/api/getTeachers", async(req, res) => {
+	var token = req.query.token;
+	try{
+		var data = jwt.verify(token, jwtKey);
+		var r = await Teacher.find({});
+
+		res.json({
+			message:"done",
+			data : r
+		});
+	}catch(err){
+		console.log(err)
+		res.json({
+			message:"er"
+		});
+	}
+});
+
+app.post("/api/uploadAssignment", async(req, res) => {
+	var token = req.body.token;
+	var cls = req.body.cls;
+	var desc = req.body.desc;
+	var subject = req.body.subject;
+	var topic = req.body.topic;
+	var imgs = req.body.img;
+	var imgArr;
+	try {
+	if(imgs.length!=0) {
+		await convertToImg(imgs).then(res => imgArr = res);
+	}
+	else {
+		imgArr = imgs.split("");
+	}
+} catch(err) {
+	console.log("Error Hai\n", err);
+}
+	var date = `${new Date().getDate()}/${new Date().getMonth()}/${new Date().getFullYear()} - ${new Date().getHours()}:${new Date().getMinutes()<10?"0"+new Date().getMinutes():new Date().getMinutes()}`;
+
+	
+
+	try{
+		var data = jwt.verify(token, jwtKey);
+		var arr = {
+			date : date,
+			cls : cls,
+			topic : topic,
+			desc : desc,
+			img : imgArr,
+			subject : subject
+		}
+		var data = new HW(arr);
+		console.log(data);
+		await data.save();
+		res.json({
+			message : "done"
+		});
+	}catch(err){
+		console.log(err);
+		res.json({
+			message: 'no'
+		});
+	}
+});
+async function convertToImg(imgs) {
+	try {
+	var n = new Date().getTime();
+	var arr = [];
+	var  i = 0;
+	for(x in imgs) {
+		const base64Data = imgs[x].split('base64,')[1];
+		await decode(base64Data, { fname: "./homeworksImg/"+(n + i), ext: 'png' });
+		arr.push("https://studentbackendpelese.herokuapp.com/homeworksImg/"+(n+i)+".png");
+		i++;
+	}
+} catch(err) {
+	console.log(err);
+}
+return arr;
+}
+
+app.get("/homeworksImg/:id", (req, res) => {
+	var d = req.query.down;
+	if(d=="yes") {
+		res.download(__dirname+req.path);
+	}
+	else {
+		res.sendFile(__dirname+req.path);
+	}
+});
+
+
+app.get("/api/submitTeacherQuery", async(req,res) => {
+	console.log("Hi Dude");
+	var token = req.query.token;
+	var subject = req.query.subject;
+	var f = req.query.from;
+	var prob = req.query.problem;
+	var d = new Date();
+	var date = `${new Date().getDate()}/${new Date().getMonth()}/${new Date().getFullYear()} - ${new Date().getHours()}:${new Date().getMinutes()<10?"0"+new Date().getMinutes():new Date().getMinutes()}`;
+	try{
+		var data = jwt.verify(token, jwtKey);
+		var data = {
+			date : date,
+			from : f,
+			topic : subject,
+			message : prob
+		};
+		var r = await new TeacherChat(data).save();
+		res.json({
+			message:"yes",
+			r
+		});
+	}catch(err){
+		console.log(err)
+		res.json({
+			message:"no"
+		});
+	}
+});
+
+
+app.get("/api/updatenId", async(req, res) => {
+	var token = req.query.token;
+	var nId = req.query.nId;
+	var uId = req.query.uId;
+	var role = req.query.role;
+	var name = req.query.name;
+	var cls = req.query.cls;
+	var d = new Date();
+	var date = `${new Date().getDate()}/${new Date().getMonth()}/${new Date().getFullYear()} - ${new Date().getHours()}:${new Date().getMinutes()<10?"0"+new Date().getMinutes():new Date().getMinutes()}`;
+	try{
+		var data = jwt.verify(token, jwtKey);
+		var a = await notification.find({nId : nId});
+		if(a.length == 0) {
+			var arr = {
+				nId : nId,
+				uId : uId,
+				role : role,
+				name : name,
+				cls : cls,
+				updateDate : date
+			};
+			var x = await new notification(arr).save();
+			console.log(x);
+			res.json({
+				message: "saved",
+				data : x
+			});
+		}
+		else {
+			var arr = {
+				nId : nId,
+				uId : uId,
+				role : role,
+				name : name,
+				cls : cls,
+				updateDate : date
+			};
+			// var x = await new notification(arr).save();
+			var x = await notification.updateOne({nId:nId}, {
+				$set:{
+					nId : nId,
+					uId : uId,
+					role : role,
+					name : name,
+					cls : cls,
+					updateDate : date
+				}
+			});
+			console.log(x);
+			res.json({
+				message:"updated",
+				data : x
+			});
+		}
+	}catch(err){
+		console.log(err)
+		res.json({
+			message:"no"
+		});
+	}
+});
+
+
 app.listen(port, function(){
-        console.log(`Server running on port ${port}`);
+	console.log(`Server running on port ${port}`);
 });

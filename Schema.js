@@ -73,7 +73,6 @@ const studentSchema = new mongoose.Schema({
 	halfmanners:{
 		behaviour:String,
 		neatnessOfWork:String,
-		neatnessOfAppearance:String,
 		punctuality:String,
 		coCirricular:String
 	},
@@ -98,7 +97,6 @@ const studentSchema = new mongoose.Schema({
 	annualgenScience:String,
 	annualsocScience:String,
 	annualcomputer:String,
-	annualcommerce:String,
 	annualdrawing:String,
 	annualgenKnowledge:String,
 	annualmoralScience:String,
@@ -107,7 +105,6 @@ const studentSchema = new mongoose.Schema({
 	annualmanners:{
 		behaviour:String,
 		neatnessOfWork:String,
-		neatnessOfAppearance:String,
 		punctuality:String,
 		coCirricular:String
 	},
@@ -232,11 +229,95 @@ const studentSchema = new mongoose.Schema({
 // 		}
 // 	}
 // });
+const teacherSchema = new mongoose.Schema({
+	name:{
+		type:String,
+		required:true
+	},
+	imgLink:{
+		type:String,
+		required:true
+	},
+	cls:{
+		type:String,
+		required:true
+	},
+	sec:{
+		type:String,
+		required:true
+	},
+	clsess:{
+		type:Array,
+		required:true
+	},
+	subjects:{
+		type:Array,
+		required:true
+	},
+	addr:{
+		type:String,
+		required:true
+	},
+	phone:{
+		type:String,
+		required:true
+	},
+	adhar:{
+		type:String,
+		required:true
+	},
+	doj:{
+		type:String,
+		required:true
+	},
+	dob:{
+		type:String,
+		required:true
+	}
+});
+
+const assignSchema = new mongoose.Schema({
+	// date : `${new Date().getDate()}/${new Date().getMonth()}/${new Date().getFullYear()} - ${new Date().getHours()}:${new Date().getMinutes()<10?"0"+new Date().getMinutes():new Date().getMinutes()}`,
+	date : String,
+	topic : String,
+	desc : String,
+	img : Array,
+	cls : String,
+	subject : String
+});
+
+const chatSchema = new mongoose.Schema({
+	message : String,
+	date : String,
+	from : String,
+	to : String,
+});
+
+const teacherIssueSchema = new mongoose.Schema({
+	from : String,
+	date : String,
+	topic : String,
+	message : String
+});
+
+const notifSchema = new mongoose.Schema({
+	nId : String,
+	uId : String,
+	role : String,
+	cls : String,
+	name : String,
+	updateDate : String,
+});
 
 
 module.exports = {
 	adminSchema,
 	messageSchema,
 	noticeSchema,
-	studentSchema
+	studentSchema,
+	teacherSchema,
+	assignSchema,
+	chatSchema,
+	teacherIssueSchema,
+	notifSchema
 };
