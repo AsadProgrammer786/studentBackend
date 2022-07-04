@@ -2,6 +2,7 @@
 
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const notif = require("./notif.js");
 const mongoose = require("mongoose");
 const fs = require("fs");
 const decode = require("node-base64-image").decode;
@@ -179,7 +180,7 @@ app.get("/api/getNotice", async(req, res) => {
 			notice = notice.length>40?notice.split(0, 40):notice;
 			res.json({
 				message: 'yes',
-				data : notice
+				data : notice.reverse()
 			})
 		}catch(err){
 			console.log(err)
@@ -402,6 +403,7 @@ app.post("/api/uploadAssignment", async(req, res) => {
 		res.json({
 			message : "done"
 		});
+		publishNotif("New "+subject+" Assignment", "click to see new assignment", {cls : cls});
 	}catch(err){
 		console.log(err);
 		res.json({
@@ -421,6 +423,7 @@ async function convertToImg(imgs) {
 		i++;
 	}
 } catch(err) {
+
 	console.log(err);
 }
 return arr;
@@ -528,6 +531,22 @@ app.get("/api/updatenId", async(req, res) => {
 		});
 	}
 });
+
+
+const publishNotif = async(title, body, to) => {
+	try {
+		if(!to['cls']==undefined) {
+			var d = await notification.find({cls : to['cls']});
+			var arr = [];
+			await d.forEach((e) => {
+				arr.push(e['nId']);
+			});
+			notif.fetchNow(title, body, arr);
+		}
+	} catch(err) {
+		// Eat Five Star Do Nothing
+	}
+}
 
 
 app.listen(port, function(){
