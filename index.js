@@ -534,18 +534,12 @@ app.get("/api/updatenId", async(req, res) => {
 
 
 const publishNotif = async(title, body, to) => {
-	try {
-		if(!to['cls']==undefined) {
 			var d = await notification.find({cls : to['cls']});
 			var arr = [];
 			await d.forEach((e) => {
 				arr.push(e['nId']);
 			});
 			notif.fetchNow(title, body, arr);
-		}
-	} catch(err) {
-		// Eat Five Star Do Nothing
-	}
 }
 
 
