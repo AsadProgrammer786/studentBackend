@@ -20,11 +20,9 @@ const fetchNow = (nTitle, nBod, ids) => {
     })
     .then((res) => {
         console.log("This is response");
-        console.log(res);
     })
     .catch((err) => {
         console.log("This is error");
-        console.log(err);
     })
 }
 

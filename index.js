@@ -405,7 +405,6 @@ app.post("/api/uploadAssignment", async(req, res) => {
 		});
 		publishNotif("New "+subject+" Assignment", "click to see new assignment", {cls : cls});
 	}catch(err){
-		console.log(err);
 		res.json({
 			message: 'no'
 		});
@@ -424,7 +423,6 @@ async function convertToImg(imgs) {
 	}
 } catch(err) {
 
-	console.log(err);
 }
 return arr;
 }
@@ -441,7 +439,6 @@ app.get("/homeworksImg/:id", (req, res) => {
 
 
 app.get("/api/submitTeacherQuery", async(req,res) => {
-	console.log("Hi Dude");
 	var token = req.query.token;
 	var subject = req.query.subject;
 	var f = req.query.from;
@@ -462,7 +459,6 @@ app.get("/api/submitTeacherQuery", async(req,res) => {
 			r
 		});
 	}catch(err){
-		console.log(err)
 		res.json({
 			message:"no"
 		});
@@ -481,7 +477,7 @@ app.get("/api/updatenId", async(req, res) => {
 	var date = `${new Date().getDate()}/${new Date().getMonth()}/${new Date().getFullYear()} - ${new Date().getHours()}:${new Date().getMinutes()<10?"0"+new Date().getMinutes():new Date().getMinutes()}`;
 	try{
 		var data = jwt.verify(token, jwtKey);
-		var a = await notification.find({nId : nId});
+		var a = await notification.find({name : name});
 		if(a.length == 0) {
 			var arr = {
 				nId : nId,
@@ -492,7 +488,6 @@ app.get("/api/updatenId", async(req, res) => {
 				updateDate : date
 			};
 			var x = await new notification(arr).save();
-			console.log(x);
 			res.json({
 				message: "saved",
 				data : x
@@ -508,7 +503,7 @@ app.get("/api/updatenId", async(req, res) => {
 				updateDate : date
 			};
 			// var x = await new notification(arr).save();
-			var x = await notification.updateOne({nId:nId}, {
+			var x = await notification.updateOne({name:name}, {
 				$set:{
 					nId : nId,
 					uId : uId,
@@ -518,14 +513,12 @@ app.get("/api/updatenId", async(req, res) => {
 					updateDate : date
 				}
 			});
-			console.log(x);
 			res.json({
 				message:"updated",
 				data : x
 			});
 		}
 	}catch(err){
-		console.log(err)
 		res.json({
 			message:"no"
 		});
@@ -539,8 +532,19 @@ const publishNotif = async(title, body, to) => {
 			await d.forEach((e) => {
 				arr.push(e['nId']);
 			});
-			notif.fetchNow(title, body, arr);
+			let newArr = [...new Set(arr)];
+			console.log(newArr);
+			notif.fetchNow(title, body, newArr);
 }
+
+
+// notification.find({}, (er, not) => {
+// 	not.forEach(async(e) => {
+// 		await notification.deleteOne({name : e['name']});
+// 		console.log("deleted");
+// 	});
+// 	console.log("end");
+// });
 
 
 app.listen(port, function(){
