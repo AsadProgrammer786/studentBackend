@@ -215,7 +215,7 @@ app.get("/api/getClassStudents", async(req, res) => {
 
 	try{
 		var data = jwt.verify(token, jwtKey);
-		if(token.role=="teacher") {
+		if(data.role=="teacher") {
 		if(cls!=""&&sec!="") {
 			var st = await Students.find({cls : cls, sec : sec});
 			res.json({
