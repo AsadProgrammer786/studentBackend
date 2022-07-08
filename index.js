@@ -215,6 +215,7 @@ app.get("/api/getClassStudents", async(req, res) => {
 
 	try{
 		var data = jwt.verify(token, jwtKey);
+		if(token.role=="teacher") {
 		if(cls!=""&&sec!="") {
 			var st = await Students.find({cls : cls, sec : sec});
 			res.json({
@@ -227,6 +228,12 @@ app.get("/api/getClassStudents", async(req, res) => {
 				message : 'ncls'
 			})
 		}
+	}
+	else {
+		res.json({
+			message : "nice try"
+		});
+	}
 	}catch(err){
 		res.json({
 			message: 'no'
@@ -392,6 +399,7 @@ app.post("/api/uploadAssignment", async(req, res) => {
 
 	try{
 		var data = jwt.verify(token, jwtKey);
+		if(data.role=="teacher") {
 		var arr = {
 			date : date,
 			cls : cls,
@@ -407,6 +415,11 @@ app.post("/api/uploadAssignment", async(req, res) => {
 			message : "done"
 		});
 		publishNotif("New "+subject+" Assignment", "click to see new assignment", {cls : cls});
+	} else {
+		res.json({
+			message : "nice try"
+		});
+	}
 	}catch(err){
 		res.json({
 			message: 'no'
@@ -450,6 +463,7 @@ app.get("/api/submitTeacherQuery", async(req,res) => {
 	var date = `${new Date().getDate()}/${new Date().getMonth()}/${new Date().getFullYear()} - ${new Date().getHours()}:${new Date().getMinutes()<10?"0"+new Date().getMinutes():new Date().getMinutes()}`;
 	try{
 		var data = jwt.verify(token, jwtKey);
+		if(data.role=="teacher") {
 		var data = {
 			date : date,
 			from : f,
@@ -461,6 +475,12 @@ app.get("/api/submitTeacherQuery", async(req,res) => {
 			message:"yes",
 			r
 		});
+	}
+	else {
+		res.json({
+			message : "you are bad at programming noob"
+		})
+	}
 	}catch(err){
 		res.json({
 			message:"no"
@@ -480,6 +500,7 @@ app.get("/api/updatenId", async(req, res) => {
 	var date = `${new Date().getDate()}/${new Date().getMonth()}/${new Date().getFullYear()} - ${new Date().getHours()}:${new Date().getMinutes()<10?"0"+new Date().getMinutes():new Date().getMinutes()}`;
 	try{
 		var data = jwt.verify(token, jwtKey);
+		if(data.role==role) {
 		var a = await notification.find({name : name});
 		if(a.length == 0) {
 			var arr = {
@@ -521,6 +542,11 @@ app.get("/api/updatenId", async(req, res) => {
 				data : x
 			});
 		}
+	} else {
+		res.json({
+			message : "lol noob. nice try"
+		});
+	}
 	}catch(err){
 		res.json({
 			message:"no"
@@ -541,22 +567,22 @@ const publishNotif = async(title, body, to) => {
 }
 
 
-app.get("/api/getFilterStudent", async(req, res) => {
-	var token = req.query.token;
+// app.get("/api/getFilterStudent", async(req, res) => {
+// 	var token = req.query.token;
 
-	try{
-		var data = jwt.verify(token, jwtKey);
-		res.json({
-			link: 'https://studentbackendpelese.herokuapp.com/Time-Table/'+calass+".jpg",
-			message: 'success'
-		})
-	}catch(err){
-		console.log(err)
-		res.json({
-			message:"Token Invalid"
-		});
-	}
-});
+// 	try{
+// 		var data = jwt.verify(token, jwtKey);
+// 		res.json({
+// 			link: 'https://studentbackendpelese.herokuapp.com/Time-Table/'+calass+".jpg",
+// 			message: 'success'
+// 		})
+// 	}catch(err){
+// 		console.log(err)
+// 		res.json({
+// 			message:"Token Invalid"
+// 		});
+// 	}
+// });
 
 
 app.listen(port, function(){
