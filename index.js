@@ -51,7 +51,7 @@ const notification = new mongoose.model("notification", Schemas.notifSchema);
 // We can check the account type via role in the token, three roles 1-student,2-teacher,3-admin
 
 // Student Login Endpoint
-
+console.log("server mein problem hai?");
 app.get("/api/loginStudent", async(req,res) => {
 	var admNo = req.query.admNo;
 	var phone = req.query.phone;
@@ -93,6 +93,7 @@ app.get("/api/loginStudent", async(req,res) => {
 		});
 	}
 	else{
+		console.log("coming?");
 		res.json({
 			message:"Student not found"
 		});
@@ -281,7 +282,9 @@ app.get("/api/deleteAssign", async(req, res) => {
 
 	try{
 		var data = jwt.verify(token, jwtKey);
-		var d = await HW.deleteOne({_id : id});
+		if(data.role=="teacher")
+			var d = await HW.deleteOne({_id : id});
+		else d = "bye bye";
 		console.log(d);
 		res.json({
 			message:"yes",
@@ -538,13 +541,22 @@ const publishNotif = async(title, body, to) => {
 }
 
 
-// notification.find({}, (er, not) => {
-// 	not.forEach(async(e) => {
-// 		await notification.deleteOne({name : e['name']});
-// 		console.log("deleted");
-// 	});
-// 	console.log("end");
-// });
+app.get("/api/getFilterStudent", async(req, res) => {
+	var token = req.query.token;
+
+	try{
+		var data = jwt.verify(token, jwtKey);
+		res.json({
+			link: 'https://studentbackendpelese.herokuapp.com/Time-Table/'+calass+".jpg",
+			message: 'success'
+		})
+	}catch(err){
+		console.log(err)
+		res.json({
+			message:"Token Invalid"
+		});
+	}
+});
 
 
 app.listen(port, function(){
