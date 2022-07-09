@@ -567,22 +567,38 @@ const publishNotif = async(title, body, to) => {
 }
 
 
-// app.get("/api/getFilterStudent", async(req, res) => {
-// 	var token = req.query.token;
-
-// 	try{
-// 		var data = jwt.verify(token, jwtKey);
-// 		res.json({
-// 			link: 'https://studentbackendpelese.herokuapp.com/Time-Table/'+calass+".jpg",
-// 			message: 'success'
-// 		})
-// 	}catch(err){
-// 		console.log(err)
-// 		res.json({
-// 			message:"Token Invalid"
-// 		});
-// 	}
-// });
+app.get("/api/getFilterStudent", async(req, res) => {
+	var token = req.query.token;
+	var q = req.query.q;
+	try{
+		var data = jwt.verify(token, jwtKey);
+		if(data.role=="teacher") {
+			var d = await Students.find({admNo : {$regex : q}});
+			if(!d.length==1) {
+				res.json({
+					message : "no"
+				});
+			}
+			else {
+				res.json({
+					message: "yes",
+					data : d
+				});
+			}
+		}
+		else {
+			res.json({
+				message: "Nice Try Kid"
+			});
+		}
+		
+	}catch(err){
+		console.log(err)
+		res.json({
+			message:"Token Invalid"
+		});
+	}
+});
 
 
 app.listen(port, function(){
