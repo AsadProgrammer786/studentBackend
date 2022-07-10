@@ -357,12 +357,30 @@ app.get("/api/verifySt", async(req, res) => {
 	}
 });
 
+
+const sendBasicDetails = async(arr) => {
+	var sendArr = [];
+	await arr.forEach((e) => {
+		sendArr.push({
+			_id : e['_id'],
+			name : e['name'],
+			cls : e['cls'],
+			subjects : e['subjects'],
+			imgLink : e['imgLink']
+		});
+	});
+	console.log(sendArr);
+	return sendArr;
+}
+
+
+
 app.get("/api/getTeachers", async(req, res) => {
 	var token = req.query.token;
 	try{
 		var data = jwt.verify(token, jwtKey);
 		var r = await Teacher.find({});
-
+		await sendBasicDetails(r).then(data => r = data);
 		res.json({
 			message:"done",
 			data : r
