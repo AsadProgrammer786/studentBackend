@@ -65,7 +65,8 @@ app.get("/api/loginStudent", async(req,res) => {
 			admNo,
 			phone,
 			role:"student",
-			expiry : new Date().getTime() + 432000000
+			expiry : new Date().getTime() + 432000000,
+			id : Student['_id']
 		};
 		var token = jwt.sign(data, jwtKey);
 		res.json({
@@ -73,7 +74,8 @@ app.get("/api/loginStudent", async(req,res) => {
 			Student,
 			token,
 			role: "student",
-			expiry : new Date().getTime() + 432000000
+			expiry : new Date().getTime() + 432000000,
+			id : teach['_id']
 		});
 	}
 	else if(teach.length > 0) {
